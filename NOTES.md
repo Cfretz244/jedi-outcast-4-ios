@@ -27,6 +27,22 @@ Every OpenJK source change gets a one-line rationale here (see patch discipline 
 - Compile warnings only (7): savegame-related `trajectory_t` typedef-linkage warnings in `codeJK2/game` save/write templates, plus an unused variable in `icarus/TaskManager.cpp`. Consistent with the known 64-bit savegame weak spot — watch this area if saves misbehave.
 - `compile_commands.json` copied into the submodule source dir by OpenJK's `copy-compile-commands` target is excluded via the submodule's local `info/exclude` (i.e. `.git/modules/vendor/openjk/info/exclude` in the superproject — re-add after a fresh submodule init, like the `upstream` remote).
 
+## Phase 2 — game assets + first run (2026-07-12)
+
+- Assets pulled from the user's own Steam account (appid 6030) via SteamCMD (Homebrew cask; payload from Valve's CDN, runs under Rosetta 2), forcing the Windows depot: the macOS depot is a dead 32-bit build. User authenticated interactively; download landed in `~/jk2-steam/GameData/base/`.
+- Four pk3s copied to fs_homepath: `~/Library/Application Support/OpenJO/base/`. All zip-valid. `verify-assets.sh` re-checks presence/integrity/sha256.
+- **sdl2-compat runtime failure, fixed**: the app aborted pre-`main()` (SIGABRT in `dllinit` under dyld) with a "failed to load library" dialog. Cause: Homebrew's sdl2-compat locates libSDL3 via its keg rpath (`@loader_path/../../../../opt/sdl3/lib`); the copy `fixup_bundle` placed in `Contents/Frameworks/` has no rpaths, and SDL3 is a `dlopen`, not a load command, so fixup never copies it. Fix: vendor `libSDL3.0.dylib` into `Contents/Frameworks/libSDL3.dylib` (matches sdl2-compat's `@loader_path/libSDL3.dylib` candidate) and re-sign — now part of `build-openjo-macos.sh`. Lesson for Phase 3: sdl2-compat's SDL3 dependency is invisible to bundle tooling.
+- Verified startup log (`logfile 2`): FS_Startup lists all four pk3s (14978 files), "Running Jedi Outcast Mode", rd-vanilla loads, GL 2.1 Metal-backed (Apple M1 Max), SDL cocoa video + coreaudio audio, UI menus load, clean shutdown. SDL compiled/linked 2.32.70.
+
+### Asset checksums (sha256, Steam 1.04 depot)
+
+| file | sha256 |
+|------|--------|
+| assets0.pk3 | e8e466f219bb2faed536021bb0d10aa6b7f5cd687302aa43080da2debdae307c |
+| assets1.pk3 | c3a9aeaf09c93e57847290e7e5cd6c1a071a560045fa8c5e8c6df3688df841c1 |
+| assets2.pk3 | aa5bf361f7623f0210473021d73fa1e6c6997f7a5cceb6af19fce951edd43368 |
+| assets5.pk3 | 7dc6bc7e599a32cc882fb2a9b741065f792ef39a129302fbd04d72ef77ee7a07 |
+
 ## OpenJK patches (fork branch `openjo-macos`)
 
 _None yet._

@@ -39,6 +39,13 @@ cmake --install build-macos
 BUNDLE="install-macos/JediOutcast/openjo_sp.${ARCH}.app"
 
 echo
+echo "== Vendor SDL3 (sdl2-compat runtime dependency) =="
+# Homebrew's "sdl2" is sdl2-compat: a shim that dlopens libSDL3 at load time.
+# fixup_bundle can't see that (it's not a load command), and the bundled copy
+# loses the keg rpath, so its @loader_path/libSDL3.dylib candidate must exist.
+cp "$(brew --prefix sdl3)/lib/libSDL3.0.dylib" "$BUNDLE/Contents/Frameworks/libSDL3.dylib"
+
+echo
 echo "== Codesign (ad-hoc, post-fixup_bundle) =="
 # fixup_bundle() rewrites load commands after linking, invalidating the
 # linker's ad-hoc signature — re-sign nested dylibs first, then the bundle.
