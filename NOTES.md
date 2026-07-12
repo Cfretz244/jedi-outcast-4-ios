@@ -74,8 +74,9 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
 
 ## Known issues
 
-- **iOS: on-screen keyboard appears at boot** (simulator, 2026-07-12): SDL's uikit backend starts text input eagerly; fix alongside touch input (3.6).
-- **iOS: renders at 800×600 windowed default** instead of native fullscreen resolution; set mode/fullscreen for iOS at startup (3.5/3.7 polish).
+- ~~iOS: on-screen keyboard appears at boot~~ **Fixed** (`0182af0c`): skip `SDL_StartTextInput()` on mobile at init (same fix as the Android port).
+- ~~iOS: renders at 800×600 windowed~~ **Fixed** (`0182af0c`): iOS forces mode -2 (native res) fullscreen at window creation, overriding archived config.
+- **iOS: menus render stretched at widescreen** — vanilla JK2 behavior (SP menus live in a 640×480 virtual space scaled to the screen; the Android port ships the same). Aspect-corrected UI is 3.7 polish. Related: adopt the Android port's `cg_fov` 100 default for gameplay.
 - **Double save-load crash** (2026-07-12, static build): load a save, then ESC → load the same save again → crash. **Unclassified** — not yet reproduced on the dynamic reference build, so it's unknown whether this is (a) a static-link regression (game module globals are no longer reset by dlclose/dlopen on each load — the classic hazard of this refactor) or (b) the pre-existing OpenJK 64-bit savegame weak spot. First diagnostic step when picked up: repro the exact sequence on `install-macos/` (dynamic). Deferred per user to keep Phase 3 moving; revisit after something lands on iOS. Note the same staleness question applies to `vid_restart` (renderer globals) — untested.
 
 ## OpenJK patches (fork branch `openjo-macos` → `openjo-static`)

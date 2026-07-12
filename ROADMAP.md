@@ -23,7 +23,7 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 | 3.2 | Renderer strategy comparison — user decided: GLES1 patch, native ES 1.1 first, ANGLE later | ✅ Decided |
 | 3.3 | Implement chosen renderer path (cherry-pick emileb USE_GLES1) | ✅ Complete — `openjo-ios` branch |
 | 3.4 | iOS CMake target, SDL2 iOS backend, sandbox paths | ✅ Complete — boots on iOS Simulator (first-ever JK2 on iOS) |
-| 3.5 | Boot to menu on device (sideload via personal cert) | Next — needs user's Apple ID / device |
+| 3.5 | Boot to menu on device | ✅ Complete — runs fullscreen on iPhone Air via Xcode deploy (2026-07-12) |
 | 3.6 | Touch + controller input | Not started |
 | 3.7 | Polish: virtual buttons, save/load, background resume | Not started |
 
