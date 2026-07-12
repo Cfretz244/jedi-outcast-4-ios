@@ -54,9 +54,22 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
 - **Linking**: Android still dlopens everything from the APK lib dir — no one has solved iOS static linking; but module seams are 3 exported symbols + function tables, `-fvisibility=hidden` already on. iOS *does* allow dlopen of bundle-embedded, same-signed dylibs (fallback path).
 - **iOS precedents**: OpenGLES.framework still functional through iOS 26 incl. ES 1.1 contexts via SDL2's iOS backend; ANGLE-on-Metal has a GLES1 frontend; gl4es→ANGLE→Metal shipped by PojavLauncher; PortMaster ships stock `openjo_sp` through gl4es on ARM handhelds. No JK2/JKA iOS port has ever existed.
 
-## OpenJK patches (fork branch `openjo-macos`)
+## Phase 3.1 — static-link refactor (2026-07-12)
 
-_None yet._
+- Branch `openjo-static` (off `openjo-macos`), commit `20991733`: new `BuildJK2SPStatic` CMake option links game + renderer into the engine executable. Mechanism: modules built as static archives, each prelinked via `ld -r` into one relocatable object with all symbols except entry points (`GetGameAPI`/`dllEntry`/`cgame_vmMain`, `GetRefAPI`) made private extern — internal references bind at prelink, so the divergent per-module `q_shared` copies can't cross-contaminate. Engine calls entry points directly behind `USE_STATIC_MODULES` (+131/−2 over 8 files; dynamic builds untouched).
+- Collision found: engine's built-in UI exports `vmMain`; cgame's `vmMain` renamed `cgame_vmMain` in static builds only.
+- Both modules verified hermetic beforehand (`nm -u`: only libc/libc++/GL/zlib undefineds — no engine symbols), which is why the seam is this small.
+- `ld -r` needs `-platform_version macos <target> <target>` with modern ld.
+- Verified: single binary (3.5 MB), no module dylibs in bundle, signs cleanly, startup log identical to dynamic reference except the removed dlopen line; campaign playable (user-confirmed).
+- Build via `./build-openjo-macos.sh static` → `build-macos-static/`, `install-macos-static/`.
+
+## Known issues
+
+- **Double save-load crash** (2026-07-12, static build): load a save, then ESC → load the same save again → crash. **Unclassified** — not yet reproduced on the dynamic reference build, so it's unknown whether this is (a) a static-link regression (game module globals are no longer reset by dlclose/dlopen on each load — the classic hazard of this refactor) or (b) the pre-existing OpenJK 64-bit savegame weak spot. First diagnostic step when picked up: repro the exact sequence on `install-macos/` (dynamic). Deferred per user to keep Phase 3 moving; revisit after something lands on iOS. Note the same staleness question applies to `vid_restart` (renderer globals) — untested.
+
+## OpenJK patches (fork branch `openjo-macos` → `openjo-static`)
+
+- `20991733` — `BuildJK2SPStatic` static-link option (see Phase 3.1 above). Written to be upstreamable.
 
 ## Asset checksums
 

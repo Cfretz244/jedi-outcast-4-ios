@@ -5,6 +5,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# Usage: build-openjo-macos.sh [static]
+#   static — build the single-binary variant (BuildJK2SPStatic=ON) into
+#            build-macos-static/ and install-macos-static/.
+VARIANT="${1:-dynamic}"
+BUILD_DIR=build-macos
+INSTALL_DIR=install-macos
+EXTRA_FLAGS=()
+if [[ "$VARIANT" == "static" ]]; then
+  BUILD_DIR=build-macos-static
+  INSTALL_DIR=install-macos-static
+  EXTRA_FLAGS=(-DBuildJK2SPStatic=ON)
+fi
+
 ARCH=$(uname -m)
 
 echo "== Toolchain =="
@@ -16,12 +29,12 @@ echo "sdl2:  $(brew list --versions sdl2)"
 echo
 
 echo "== Configure =="
-cmake -G Ninja -S vendor/openjk -B build-macos \
+cmake -G Ninja -S vendor/openjk -B "$BUILD_DIR" "${EXTRA_FLAGS[@]}" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$(brew --prefix)" \
   -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 \
-  -DCMAKE_INSTALL_PREFIX=./install-macos \
+  -DCMAKE_INSTALL_PREFIX="./$INSTALL_DIR" \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
   -DBuildJK2SPEngine=ON -DBuildJK2SPGame=ON -DBuildJK2SPRdVanilla=ON \
   -DBuildSPEngine=OFF -DBuildSPGame=OFF -DBuildSPRdVanilla=OFF \
@@ -30,13 +43,13 @@ cmake -G Ninja -S vendor/openjk -B build-macos \
 
 echo
 echo "== Build =="
-cmake --build build-macos
+cmake --build "$BUILD_DIR"
 
 echo
 echo "== Install =="
-cmake --install build-macos
+cmake --install "$BUILD_DIR"
 
-BUNDLE="install-macos/JediOutcast/openjo_sp.${ARCH}.app"
+BUNDLE="$INSTALL_DIR/JediOutcast/openjo_sp.${ARCH}.app"
 
 echo
 echo "== Vendor SDL3 (sdl2-compat runtime dependency) =="

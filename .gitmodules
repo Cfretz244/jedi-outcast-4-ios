@@ -1,4 +1,4 @@
 [submodule "vendor/openjk"]
 	path = vendor/openjk
 	url = git@github.com:Cfretz244/OpenJK.git
-	branch = openjo-macos
+	branch = openjo-static

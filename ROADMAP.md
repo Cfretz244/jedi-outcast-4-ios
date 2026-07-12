@@ -18,10 +18,10 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 
 | Stage | Description | Status |
 |-------|-------------|--------|
-| 3.0 | Study the Beloko Games (emileb) Android port; write up findings | ✅ Complete — see docs/research/, awaiting review |
-| 3.1 | Static-link refactor (kill runtime dlopen), verified on macOS | Not started |
-| 3.2 | Renderer strategy comparison (GL4ES/ANGLE vs GLES port vs Metal) — user decides | Not started |
-| 3.3 | Implement chosen renderer path | Not started |
+| 3.0 | Study the Beloko Games (emileb) Android port; write up findings | ✅ Complete — see docs/research/ |
+| 3.1 | Static-link refactor (kill runtime dlopen), verified on macOS | ✅ Complete — `openjo-static` branch; known issue: double save-load crash (unclassified, deferred) |
+| 3.2 | Renderer strategy comparison — user decided: GLES1 patch, native ES 1.1 first, ANGLE later | ✅ Decided |
+| 3.3 | Implement chosen renderer path (cherry-pick emileb USE_GLES1) | In progress |
 | 3.4 | iOS CMake/Xcode target, SDL2 iOS backend, sandbox paths | Not started |
 | 3.5 | Boot to menu on device | Not started |
 | 3.6 | Touch + controller input | Not started |
@@ -33,3 +33,5 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 - **2026-07-12** — Asset source: Steam (SteamCMD, forced Windows platform).
 - **2026-07-12** — Submodule uses ssh URL (`git@github.com:Cfretz244/OpenJK.git`) per user preference.
 - Distribution: sideload only (AltStore/SideStore, personal cert). App Store is out — settled, do not relitigate.
+- **2026-07-12** — Renderer path: cherry-pick emileb's `USE_GLES1` rd-vanilla patch; boot natively on OpenGLES.framework ES 1.1 first, keep ANGLE-on-Metal as the later durability upgrade (same patch either way).
+- **2026-07-12** — Module linking: static-link game + renderer into the engine (ld -r prelink + localize + direct GetGameAPI/GetRefAPI calls), built on macOS first; bundle-embedded signed dylibs kept as fallback.
