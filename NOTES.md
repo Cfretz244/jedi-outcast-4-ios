@@ -45,6 +45,15 @@ Every OpenJK source change gets a one-line rationale here (see patch discipline 
 | assets2.pk3 | aa5bf361f7623f0210473021d73fa1e6c6997f7a5cceb6af19fce951edd43368 |
 | assets5.pk3 | 7dc6bc7e599a32cc882fb2a9b741065f792ef39a129302fbd04d72ef77ee7a07 |
 
+## Phase 3.0 — Android-port study (2026-07-12)
+
+Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
+
+- The live Android port is **`emileb/OpenJK` branch `master_mobile`** (engine of the Psi Touch app, pushed 2026-07-05), a fork of our exact upstream, merge-base 2 commits behind master. Total mobile delta: +4,283/−117 lines, cleanly ifdef'd.
+- **Renderer**: in-tree **GLES 1.1** port of rd-vanilla behind `USE_GLES1` (~1,000 lines for SP). No translation layer. Keeps stencil shadows and cinematics; drops dynamic glow (default-off anyway) and hardware gamma (blend-pass emulation). GPLv2 — cherry-pickable into our fork with attribution.
+- **Linking**: Android still dlopens everything from the APK lib dir — no one has solved iOS static linking; but module seams are 3 exported symbols + function tables, `-fvisibility=hidden` already on. iOS *does* allow dlopen of bundle-embedded, same-signed dylibs (fallback path).
+- **iOS precedents**: OpenGLES.framework still functional through iOS 26 incl. ES 1.1 contexts via SDL2's iOS backend; ANGLE-on-Metal has a GLES1 frontend; gl4es→ANGLE→Metal shipped by PojavLauncher; PortMaster ships stock `openjo_sp` through gl4es on ARM handhelds. No JK2/JKA iOS port has ever existed.
+
 ## OpenJK patches (fork branch `openjo-macos`)
 
 _None yet._

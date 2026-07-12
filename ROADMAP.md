@@ -18,7 +18,7 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 
 | Stage | Description | Status |
 |-------|-------------|--------|
-| 3.0 | Study the Beloko Games (emileb) Android port; write up findings | Not started |
+| 3.0 | Study the Beloko Games (emileb) Android port; write up findings | ✅ Complete — see docs/research/, awaiting review |
 | 3.1 | Static-link refactor (kill runtime dlopen), verified on macOS | Not started |
 | 3.2 | Renderer strategy comparison (GL4ES/ANGLE vs GLES port vs Metal) — user decides | Not started |
 | 3.3 | Implement chosen renderer path | Not started |
