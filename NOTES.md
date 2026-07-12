@@ -63,8 +63,19 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
 - Verified: single binary (3.5 MB), no module dylibs in bundle, signs cleanly, startup log identical to dynamic reference except the removed dlopen line; campaign playable (user-confirmed).
 - Build via `./build-openjo-macos.sh static` → `build-macos-static/`, `install-macos-static/`.
 
+## Phase 3.3 + 3.4 — GLES1 renderer and iOS target (2026-07-12)
+
+- Branch `openjo-ios` (off `openjo-static`):
+  - `137e48a8` — cherry-pick of emileb's `USE_GLES1` rd-vanilla port (GPLv2, from `emileb/OpenJK` `master_mobile`, merge-base `8cce3ea2`), scoped to `code/rd-vanilla`, +1,304 lines; iOS adaptations: OpenGLES/ES1 headers in qgl.h, `USE_GLES1` + OpenGLES.framework when `IOS` in CMake.
+  - `66a54dc6` — iOS platform support: Documents homepath, `SDL_main` rename, static SDL2 link, iOS Info.plist (UIFileSharingEnabled, landscape), Architecture detection for cross builds, `glStencilOpSeparate` stub + forced two-pass stencil shadows on Apple GLES1.
+- `build-openjo-ios.sh [sim|device]` — fetches/builds **real SDL2** (`release-2.32.10`, static) for the target, then builds the fully static app. Simulator needs no signing.
+- **Milestone: first-ever JK2 on iOS** — boots on the iPhone 17 Pro simulator: all four pk3s found in sandbox Documents, `OpenGL ES-CM 1.1 APPLE` context via SDL `uikit`, main-menu scene renders, clean exit. (Simulator uses Apple Software Renderer; a real device uses the GPU driver.)
+- Cross-build gotchas hit: `CMAKE_SYSTEM_PROCESSOR` empty under `-DCMAKE_SYSTEM_NAME=iOS` (fixed in-tree via `CMAKE_OSX_ARCHITECTURES`); `CMAKE_FIND_ROOT_PATH` needed for the SDL2 prefix; `ld -r` needs `-platform_version ios-simulator`.
+
 ## Known issues
 
+- **iOS: on-screen keyboard appears at boot** (simulator, 2026-07-12): SDL's uikit backend starts text input eagerly; fix alongside touch input (3.6).
+- **iOS: renders at 800×600 windowed default** instead of native fullscreen resolution; set mode/fullscreen for iOS at startup (3.5/3.7 polish).
 - **Double save-load crash** (2026-07-12, static build): load a save, then ESC → load the same save again → crash. **Unclassified** — not yet reproduced on the dynamic reference build, so it's unknown whether this is (a) a static-link regression (game module globals are no longer reset by dlclose/dlopen on each load — the classic hazard of this refactor) or (b) the pre-existing OpenJK 64-bit savegame weak spot. First diagnostic step when picked up: repro the exact sequence on `install-macos/` (dynamic). Deferred per user to keep Phase 3 moving; revisit after something lands on iOS. Note the same staleness question applies to `vid_restart` (renderer globals) — untested.
 
 ## OpenJK patches (fork branch `openjo-macos` → `openjo-static`)

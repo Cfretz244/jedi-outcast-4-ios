@@ -21,9 +21,9 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 | 3.0 | Study the Beloko Games (emileb) Android port; write up findings | ✅ Complete — see docs/research/ |
 | 3.1 | Static-link refactor (kill runtime dlopen), verified on macOS | ✅ Complete — `openjo-static` branch; known issue: double save-load crash (unclassified, deferred) |
 | 3.2 | Renderer strategy comparison — user decided: GLES1 patch, native ES 1.1 first, ANGLE later | ✅ Decided |
-| 3.3 | Implement chosen renderer path (cherry-pick emileb USE_GLES1) | In progress |
-| 3.4 | iOS CMake/Xcode target, SDL2 iOS backend, sandbox paths | Not started |
-| 3.5 | Boot to menu on device | Not started |
+| 3.3 | Implement chosen renderer path (cherry-pick emileb USE_GLES1) | ✅ Complete — `openjo-ios` branch |
+| 3.4 | iOS CMake target, SDL2 iOS backend, sandbox paths | ✅ Complete — boots on iOS Simulator (first-ever JK2 on iOS) |
+| 3.5 | Boot to menu on device (sideload via personal cert) | Next — needs user's Apple ID / device |
 | 3.6 | Touch + controller input | Not started |
 | 3.7 | Polish: virtual buttons, save/load, background resume | Not started |
 
