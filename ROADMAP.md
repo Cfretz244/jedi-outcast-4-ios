@@ -10,8 +10,8 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 0 | Repo, fork, submodule setup | ✅ Complete — signed off |
-| 1 | macOS build (JK2 SP engine + game + renderer) | ✅ Complete — awaiting gate sign-off |
-| 2 | Game assets (Steam, appid 6030 via SteamCMD) | Not started |
+| 1 | macOS build (JK2 SP engine + game + renderer) | ✅ Complete — signed off |
+| 2 | Game assets (Steam, appid 6030 via SteamCMD) | ✅ Complete — campaign playable, Gate 2 passed |
 | 3 | iOS port | Not started |
 
 ## Phase 3 sub-stages (planned)

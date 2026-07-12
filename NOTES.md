@@ -34,6 +34,8 @@ Every OpenJK source change gets a one-line rationale here (see patch discipline 
 - **sdl2-compat runtime failure, fixed**: the app aborted pre-`main()` (SIGABRT in `dllinit` under dyld) with a "failed to load library" dialog. Cause: Homebrew's sdl2-compat locates libSDL3 via its keg rpath (`@loader_path/../../../../opt/sdl3/lib`); the copy `fixup_bundle` placed in `Contents/Frameworks/` has no rpaths, and SDL3 is a `dlopen`, not a load command, so fixup never copies it. Fix: vendor `libSDL3.0.dylib` into `Contents/Frameworks/libSDL3.dylib` (matches sdl2-compat's `@loader_path/libSDL3.dylib` candidate) and re-sign — now part of `build-openjo-macos.sh`. Lesson for Phase 3: sdl2-compat's SDL3 dependency is invisible to bundle tooling.
 - Verified startup log (`logfile 2`): FS_Startup lists all four pk3s (14978 files), "Running Jedi Outcast Mode", rd-vanilla loads, GL 2.1 Metal-backed (Apple M1 Max), SDL cocoa video + coreaudio audio, UI menus load, clean shutdown. SDL compiled/linked 2.32.70.
 
+- **Gate 2 passed (2026-07-12)**: user confirmed a new game reaches player control; sound/video/input all fine. One observation: the **opening cinematics played surprisingly slowly** while in-game rendering was smooth. Not investigated (RoQ playback is CPU-decoded and uploads full-screen textures each frame — plausible suspects are the glDrawPixels/texture-upload path through Apple's GL-on-Metal, or sdl2-compat; could also be pre-existing OpenJK behavior). Known quirk to re-check when the renderer changes in Phase 3 — don't chase unless it worsens.
+
 ### Asset checksums (sha256, Steam 1.04 depot)
 
 | file | sha256 |
