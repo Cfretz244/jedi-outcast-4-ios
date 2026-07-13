@@ -19,7 +19,7 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 3.0 | Study the Beloko Games (emileb) Android port; write up findings | ✅ Complete — see docs/research/ |
-| 3.1 | Static-link refactor (kill runtime dlopen), verified on macOS | ✅ Complete — `openjo-static` branch; known issue: double save-load crash (unclassified, deferred) |
+| 3.1 | Static-link refactor (kill runtime dlopen), verified on macOS | ✅ Complete — `openjo-static` branch; double save-load crash fixed (`de048a2a`, nav stale globals) |
 | 3.2 | Renderer strategy comparison — user decided: GLES1 patch, native ES 1.1 first, ANGLE later | ✅ Decided |
 | 3.3 | Implement chosen renderer path (cherry-pick emileb USE_GLES1) | ✅ Complete — `openjo-ios` branch |
 | 3.4 | iOS CMake target, SDL2 iOS backend, sandbox paths | ✅ Complete — boots on iOS Simulator (first-ever JK2 on iOS) |
@@ -40,11 +40,12 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 
 Everything below is unstarted or unverified; ordered roughly by value.
 
-1. **Double save-load crash** — load a save, ESC, load it again → crash (found on macOS static build).
-   Unclassified: first step is reproducing the exact sequence on the *dynamic* macOS build
-   (`install-macos/`) to separate (a) static-link stale-globals regression (game module globals are
-   no longer reset by dlclose/dlopen per load) from (b) the known OpenJK 64-bit savegame weak spot.
-   Also untested for the same reason: `vid_restart` (renderer statics), and saves on iOS generally.
+1. ~~**Double save-load crash**~~ **Fixed** (`de048a2a`, 2026-07-12) — was (a): static-link stale
+   globals in the JK2 nav system (dangling `CNavigator::m_nodes` + ever-growing
+   `numStoredWaypoints`). Both reset on teardown now; 6 consecutive loads verified on macOS static.
+   Still open from the same hazard class: `vid_restart` (renderer statics) untested, saves on iOS
+   untested, and other game-module globals may assume dlclose resets them. Not yet deployed/verified
+   on device.
 2. **AltStore/SideStore packaging** — escape the 7-day Xcode signing window. Zip
    `build-ios-xcode/Release/openjo_sp.arm64.app` into `Payload/` → `.ipa`; AltStore re-signs.
    Verify app-data (pk3s) survives AltStore's install-over. Free-account 7-day refresh still applies.
