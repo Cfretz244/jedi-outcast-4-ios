@@ -76,6 +76,7 @@ if [[ "$TARGET" == "xcode" ]]; then
     -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_STYLE=Automatic \
     -DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
     -DCMAKE_XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER=org.openjk.openjo-sp \
+    -DJK2SPIconDir="$PWD/ios-icon" \
     -DBuildJK2SPEngine=ON -DBuildJK2SPGame=ON -DBuildJK2SPRdVanilla=ON \
     -DBuildJK2SPStatic=ON \
     -DBuildSPEngine=OFF -DBuildSPGame=OFF -DBuildSPRdVanilla=OFF \
@@ -101,6 +102,7 @@ cmake -G Ninja -S vendor/openjk -B "$BUILD_DIR" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_PREFIX_PATH="$DEPS_PREFIX" \
   -DCMAKE_FIND_ROOT_PATH="$DEPS_PREFIX" \
+  -DJK2SPIconDir="$PWD/ios-icon" \
   -DBuildJK2SPEngine=ON -DBuildJK2SPGame=ON -DBuildJK2SPRdVanilla=ON \
   -DBuildJK2SPStatic=ON \
   -DBuildSPEngine=OFF -DBuildSPGame=OFF -DBuildSPRdVanilla=OFF \
