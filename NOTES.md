@@ -93,3 +93,40 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
 ## Asset checksums
 
 _Pending Phase 2._
+
+## Development workflow (iOS device) — read me first in a new session
+
+- **Branches**: fork `Cfretz244/OpenJK` — `openjo-macos` (clean, = upstream) → `openjo-static`
+  (static linking) → **`openjo-ios`** (current work; renderer + platform + input + widescreen).
+  Superproject gitlink tracks `openjo-ios`.
+- **Builds**:
+  - macOS reference (dynamic): `./build-openjo-macos.sh` → `install-macos/`
+  - macOS static: `./build-openjo-macos.sh static` → `install-macos-static/`
+  - iOS simulator: `./build-openjo-ios.sh sim` (Ninja, unsigned)
+  - iOS Xcode project (device deploys): `./build-openjo-ios.sh xcode` → `build-ios-xcode/OpenJK.xcodeproj`
+- **Device deploy loop** (iPhone Air, UDID `B5BE21E9-15E7-5575-BDAF-34C26B179DC5`,
+  bundle id `org.openjk.openjo-sp`, team `44KC9KSGZQ`, signing identity "Apple Development: Christopher Fretz"):
+    xcodebuild -project build-ios-xcode/OpenJK.xcodeproj -target openjo_sp.arm64 \
+      -configuration Release -destination "generic/platform=iOS" -allowProvisioningUpdates build
+    xcrun devicectl device install app --device <UDID> build-ios-xcode/Release/openjo_sp.arm64.app
+    xcrun devicectl device process launch --terminate-existing --device <UDID> org.openjk.openjo-sp [+set logfile 2]
+  Phone must be unlocked to launch. Launching from home screen loses +set args.
+- **Device files** (app data container):
+    xcrun devicectl device info files --device <UDID> --domain-type appDataContainer \
+      --domain-identifier org.openjk.openjo-sp --subdirectory Documents/base
+    ... device copy to/from ... --source/--destination for pk3s, qconsole.log, openjo_sp.cfg
+  **Important**: never let an external tool *create* `Documents/base` — the app pre-creates it at
+  startup (FS fix) and must own it, or in-game mkdir (maps/, saves/) fails. If the container gets
+  wrecked: uninstall app, reinstall, launch once (creates base), then push the four pk3s into it.
+  App uninstall wipes pk3s (~600 MB re-push); install-over keeps them.
+- **Config surgery**: archived cvars in `Documents/base/openjo_sp.cfg` override new code defaults
+  (bit us with cg_fovAspectAdjust). Pull, edit, push while the app is NOT running.
+- **Simulator loop**: `xcrun simctl` boot/install/launch; container via `simctl get_app_container ... data`;
+  screenshots via `simctl io <udid> screenshot`.
+- **Mac-side repro of iOS-only issues**: macOS static build accepts
+  `+set r_aspectCorrect2D 1 +set r_mode -1 +set r_customwidth 1600 +set r_customheight 640 +set r_fullscreen 0 +devmap kejim_post`
+  — full console access; screencapture + osascript keystrokes work (ask user first; it takes over their screen).
+- **Key cvars added by this port**: `r_aspectCorrect2D` (renderer, default 1 mobile),
+  `cg_fovAspectAdjust=1` (mobile), `in_gamepadLookSpeed` (30), `in_joystickDualStick` (1),
+  `joy_threshold` (0.15 deadzone). Controller mapping table in the 3.6 commit message (fork `6af916e0`).
+- Outstanding work list: see ROADMAP.md "Outstanding work".
