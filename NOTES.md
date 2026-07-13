@@ -72,6 +72,12 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
 - **Milestone: first-ever JK2 on iOS** — boots on the iPhone 17 Pro simulator: all four pk3s found in sandbox Documents, `OpenGL ES-CM 1.1 APPLE` context via SDL `uikit`, main-menu scene renders, clean exit. (Simulator uses Apple Software Renderer; a real device uses the GPU driver.)
 - Cross-build gotchas hit: `CMAKE_SYSTEM_PROCESSOR` empty under `-DCMAKE_SYSTEM_NAME=iOS` (fixed in-tree via `CMAKE_OSX_ARCHITECTURES`); `CMAKE_FIND_ROOT_PATH` needed for the SDL2 prefix; `ld -r` needs `-platform_version ios-simulator`.
 
+## Phase 3.7 (partial) — widescreen presentation (2026-07-12)
+
+- `r_aspectCorrect2D` (renderer cvar, default 1 on mobile): 2D layer renders as centered 4:3 via widened ortho instead of stretching; full-virtual-width flat "white" fills (cinematic bars, fades) deliberately extend to the screen edges; pure-2D frames clear the margins; brightness pass covers everything. UI 3D previews aligned via `uiDC.xbias`; `lefthud`/`righthud` menus shifted to the true corners in `Menu_PostParse`.
+- `cg_fovAspectAdjust` defaults 1 on mobile (Hor+ FOV); the device's archived config was patched in place.
+- Verified on device: menus 4:3-correct with the 3D saber ornament aligned, cutscene bars edge-to-edge, gameplay FOV wide, HUD gauges in the true corners. Weapon-select overlay stays 4:3-centered (transient, by design).
+
 ## Known issues
 
 - ~~iOS: on-screen keyboard appears at boot~~ **Fixed** (`0182af0c`): skip `SDL_StartTextInput()` on mobile at init (same fix as the Android port).
