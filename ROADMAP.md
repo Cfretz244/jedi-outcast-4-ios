@@ -25,7 +25,7 @@ Phases are gated: each ends in a hard stop for review before the next begins.
 | 3.4 | iOS CMake target, SDL2 iOS backend, sandbox paths | ✅ Complete — boots on iOS Simulator (first-ever JK2 on iOS) |
 | 3.5 | Boot to menu on device | ✅ Complete — runs fullscreen on iPhone Air via Xcode deploy (2026-07-12) |
 | 3.6 | Touch + controller input | Controller ✅ (SDL_GameController, tuned on device); touch overlay not started |
-| 3.7 | Polish: virtual buttons, save/load, background resume | Partial — widescreen presentation done (aspect-corrected 2D, FOV, HUD corners, prongs) |
+| 3.7 | Polish: virtual buttons, save/load, background resume | Partial — widescreen presentation done (aspect-corrected 2D, FOV, HUD corners, prongs); dev console + cheats on device (L3+R3 chord + on-screen keyboard, `27665ce1`) |
 
 ## Key decisions
 

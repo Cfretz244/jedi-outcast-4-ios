@@ -90,6 +90,7 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
 
 - `20991733` — `BuildJK2SPStatic` static-link option (see Phase 3.1 above). Written to be upstreamable.
 - `de048a2a` (`openjo-ios`) — reset nav-system globals on teardown (`CNavigator::Free` container clear + `numStoredWaypoints`/`tempWaypointList` reset in `NAV_Shutdown`): fixes the double save-load crash and the follow-on "Too many waypoints!" drop under static linking. No-op for dynamic builds.
+- `27665ce1` (`openjo-ios`) — L3+R3 held 400ms toggles the dev console (`in_gamepadConsoleChord`, default 1); on mobile the UIKit on-screen keyboard rises/falls with `KEYCATCH_CONSOLE` via `SDL_StartTextInput`/`StopTextInput` edge detection in `IN_Frame`. Cheats: type `helpusobi 1` then `give all`/`god`/`noclip`/etc. Known quirks: chording mid-game blips saber-style/zoom once (stick-click taps forward immediately by design); if the keyboard is dismissed with the iOS system key while the console stays open, chord twice to get it back (same recovery after `vid_restart` with console open — SDL's text-input state tracks the keyboard, so we track our own).
 
 ## Asset checksums
 
