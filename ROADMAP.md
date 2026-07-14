@@ -43,9 +43,13 @@ Everything below is unstarted or unverified; ordered roughly by value.
 1. ~~**Double save-load crash**~~ **Fixed** (`de048a2a`, 2026-07-12) — was (a): static-link stale
    globals in the JK2 nav system (dangling `CNavigator::m_nodes` + ever-growing
    `numStoredWaypoints`). Both reset on teardown now; 6 consecutive loads verified on macOS static.
-   Still open from the same hazard class: `vid_restart` (renderer statics) untested, saves on iOS
-   untested, and other game-module globals may assume dlclose resets them. Not yet deployed/verified
-   on device.
+   **2026-07-13**: two more from the same hazard class fixed (`51b9b1bf` ROFF cache, `877c25fa`
+   `player_locked`) — they broke the chapter 3→4 transition (see NOTES.md Known issues, incl. the
+   poisoned-savegame caveat). Still open from the hazard class: `vid_restart` (renderer statics)
+   untested, and other game-module globals may assume dlclose resets them — when a level behaves
+   impossibly, suspect a stale global first and grep for file-scope state in the involved subsystem.
+   On-device: chapter 4 verified working via `devmap artus_detention`; full played chapter 3→4
+   transition on device not yet user-confirmed.
 2. **AltStore/SideStore packaging** — escape the 7-day Xcode signing window. Zip
    `build-ios-xcode/Release/openjo_sp.arm64.app` into `Payload/` → `.ipa`; AltStore re-signs.
    Verify app-data (pk3s) survives AltStore's install-over. Free-account 7-day refresh still applies.

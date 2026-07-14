@@ -84,12 +84,33 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
 - ~~iOS: renders at 800×600 windowed~~ **Fixed** (`0182af0c`): iOS forces mode -2 (native res) fullscreen at window creation, overriding archived config.
 - **iOS: menus render stretched at widescreen** — vanilla JK2 behavior (SP menus live in a 640×480 virtual space scaled to the screen; the Android port ships the same). Aspect-corrected UI is 3.7 polish. Related: adopt the Android port's `cg_fov` 100 default for gameplay.
 - **Widescreen: weapon-select prongs snap between anchors** — idle prongs nestle over the relocated corner gauges; while the carousel is open they sit at its (4:3-centered) ends, so they visibly jump on open/close. Cosmetic, accepted for now; a slide animation between anchors would fix it properly.
+- ~~**Chapter 4 (artus_detention) start: player rooted / cinematic wedged**~~ **Fixed**
+  (`51b9b1bf` + `877c25fa`, 2026-07-13): two more static-link stale globals, found from the user's
+  report "can look and pivot but can't move, even with noclip". (1) `player_locked` — artus_mine's
+  ending tram script locks the player and relies on the level change to unlock; the leak left all
+  movement input zeroed in chapter 4 (noclip can't help: the usercmd is eaten, not collision).
+  (2) the ROFF cache (`g_roff.cpp`) — entries' `fileName`/`data` live on the freed level hunk, so
+  chapter 4's opening bridge-collapse ROFFs (first ROFF playback after any level change) read
+  dangling memory: wedged the intro cinematic on device, EXC_BAD_ACCESS in `G_Roff` on macOS.
+  Both reset in `ShutdownGame`. Verified via scripted macOS repro + `devmap artus_detention` on
+  device. **Caveat: saves written by broken builds after a level transition are permanently
+  poisoned** (`G_SaveCachedRoffs` serialized the dangling filenames) — the user's old chapter-4
+  auto-save hangs even on fixed builds; a fresh transition writes a good one. Also learned:
+  `helpusobi 1` cheats reset on level transition, so an on-device "noclip didn't work" report can
+  mean noclip silently never engaged.
 - ~~**Double save-load crash**~~ **Fixed** (`de048a2a`, 2026-07-12): classified as (a) — static-link stale globals, in the JK2 nav system. `CNavigator::Free()` deleted its nodes but never emptied `m_nodes`/`m_edgeLookupMap`, so the second in-process level init appended new nodes after dangling pointers → EXC_BAD_ACCESS in `CheckBlockedEdges` (lldb repro was fully scriptable: `+load quik +wait 300 +load quik`). Fixing that exposed a sibling in the same subsystem: `numStoredWaypoints` (file static, `g_nav.cpp`) accumulated across loads until `Too many waypoints!` ERR_DROP on the ~3rd load — user spotted it in the on-screen test window. Both reset in teardown now. Verified: 6 consecutive save loads on static, 3 on dynamic, clean. **The general hazard stands**: other game-module globals may still assume dlclose resets them — `vid_restart` (renderer statics) remains untested, and saves on iOS untested generally.
 
 ## OpenJK patches (fork branch `openjo-macos` → `openjo-static`)
 
 - `20991733` — `BuildJK2SPStatic` static-link option (see Phase 3.1 above). Written to be upstreamable.
 - `de048a2a` (`openjo-ios`) — reset nav-system globals on teardown (`CNavigator::Free` container clear + `numStoredWaypoints`/`tempWaypointList` reset in `NAV_Shutdown`): fixes the double save-load crash and the follow-on "Too many waypoints!" drop under static linking. No-op for dynamic builds.
+- `51b9b1bf` (`openjo-ios`) — free the ROFF cache in `ShutdownGame`: entries dangle into the freed
+  level hunk under static linking; fixes the chapter-4 wedged intro cinematic / `G_Roff` crash and
+  stops savegames inheriting a corrupt ROFF list. No-op for dynamic builds.
+- `877c25fa` (`openjo-ios`) — reset `player_locked` + `cinematicSkipScript` in `ShutdownGame`:
+  level scripts lock the player for exit cinematics and rely on dlclose to unlock (JKA resets this
+  per level; JK2's module predates that). Fixes arriving in chapter 4 unable to move. No-op for
+  dynamic builds.
 - `27665ce1` (`openjo-ios`) — L3+R3 held 400ms toggles the dev console (`in_gamepadConsoleChord`, default 1); on mobile the UIKit on-screen keyboard rises/falls with `KEYCATCH_CONSOLE` via `SDL_StartTextInput`/`StopTextInput` edge detection in `IN_Frame`. Cheats: type `helpusobi 1` then `give all`/`god`/`noclip`/etc. Known quirks: chording mid-game blips saber-style/zoom once (stick-click taps forward immediately by design); if the keyboard is dismissed with the iOS system key while the console stays open, chord twice to get it back (same recovery after `vid_restart` with console open — SDL's text-input state tracks the keyboard, so we track our own).
 
 ## Asset checksums
@@ -128,6 +149,17 @@ _Pending Phase 2._
 - **Mac-side repro of iOS-only issues**: macOS static build accepts
   `+set r_aspectCorrect2D 1 +set r_mode -1 +set r_customwidth 1600 +set r_customheight 640 +set r_fullscreen 0 +devmap kejim_post`
   — full console access; screencapture + osascript keystrokes work (ask user first; it takes over their screen).
+- **Headless-ish scripted repro** (no keystroke injection; used to crack the chapter-4 bugs): write
+  a cfg into fs_homepath `base/`, launch with
+  `+set logfile 2 +set r_fullscreen 0 +set r_mode 3 +set s_volume 0 +set s_musicvolume 0 +exec repro.cfg`,
+  parse `base/qconsole.log`. Building blocks: `wait N` (N frames, ~250fps windowed), `devmap <map>`,
+  `runscript scripts/<dir>/<name>` (cheat), `maptransition <map>` (real level-change path, resets
+  cheats — re-`helpusobi 1` after), `exitview` (skips in-game cinematics — probes during a cutscene
+  read as false "frozen"), `helpusobi 1; noclip` (echoes "noclip ON" when it engages), `+forward ...
+  -forward` + `viewpos` before/after as a movement probe (expect ~1 unit if wall-blocked, ~365 if
+  free), `quit`. `+set g_ICARUSDebug 4` traces every script command to the log — but the console
+  spam tanks fps and perturbs mover physics; don't trust positional results from debug runs. Crash
+  reports land in `~/Library/Logs/DiagnosticReports/openjo_sp*.ips` (JSON; `faultingThread` frames).
 - **Key cvars added by this port**: `r_aspectCorrect2D` (renderer, default 1 mobile),
   `cg_fovAspectAdjust=1` (mobile), `in_gamepadLookSpeed` (30), `in_joystickDualStick` (1),
   `joy_threshold` (0.15 deadzone). Controller mapping table in the 3.6 commit message (fork `6af916e0`).
