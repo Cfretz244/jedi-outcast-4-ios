@@ -78,6 +78,48 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
 - `cg_fovAspectAdjust` defaults 1 on mobile (Hor+ FOV); the device's archived config was patched in place.
 - Verified on device: menus 4:3-correct with the 3D saber ornament aligned, cutscene bars edge-to-edge, gameplay FOV wide, HUD gauges in the true corners. Weapon-select overlay stays 4:3-centered (transient, by design).
 
+## Proactive static-link stale-global audit (2026-07-19, `b52e4bd9`)
+
+Stop playing whack-a-mole: instead of waiting for each level to expose the next stale global, audited
+**every statically-linked module** for the hazard class. Motivating report: on Artus Topside, early
+story cinematics don't replay after you die and reload.
+
+**Root mechanism (re-confirmed in source).** Static linking makes `Sys_UnloadDll` a no-op
+(`gameLibrary`/`rendererLib == NULL`), so `SV_ShutdownGameProgs`/`CL_ShutdownRef` never dlclose the
+module — the code image and all its `.bss`/`.data` persist for the whole process. On a level change
+`SV_SpawnServer` only reclaims what `Hunk_Clear` frees plus what `ShutdownGame`/`InitGame` explicitly
+reset. **Safe categories** (do NOT re-chase): `level_locals_t` (memset in InitGame), the `g_entities`
+array (memset), anything `G_Alloc`'d on the hunk, and entity-stored state (respawned/restored from
+save). **Unsafe** = any other file-scope `static`/global or static class member.
+
+**Fixed in `b52e4bd9`** (all no-ops/guarded for dynamic builds):
+
+| Module | Global | Why it leaked / symptom |
+|--------|--------|-------------------------|
+| cgame `cg_camera.cpp` | `in_camera` | cleared only by `CG_Shutdown`/`CGCam_Disable`, neither of which runs on a die+reload (VM kept alive) → a cinematic can outlive its level. Now reset in `CGCam_Init` (inside the `!qbVidRestartOccured` guard, so vid_restart mid-cutscene is preserved). **Prime Artus Topside suspect.** |
+| game `Q3_Registers.cpp` | `varStrings/Floats/Vectors`, `numVariables` | ICARUS declare/set/get store — only cleared on the save-read path. Now `Q3_InitVariables()` in `ShutdownGame`. Safe: every save-driven entry repopulates via `ReadLevel→Q3_VariableLoad`, so this only affects the no-save `map`/New Game path. |
+| game `g_target.cpp` | `numNewICARUSEnts` | monotonic script-ent name allocator, climbs forever. Reset in `ShutdownGame`. |
+| game `AI_Jedi.cpp`/`AI_Stormtrooper.cpp` | `jediSpeechDebounceTime`/`groupSpeechDebounceTime` | stale `(level.time+N)` timestamps mute team speech early in a reloaded level. Zeroed in `NPC_InitAI`. |
+| game `g_nav.cpp` | `marker` (was `static`) | `G_FreeEntity`'d every call, so a process-static pointer dangles into a freed `g_entities` slot and (no dlclose) survives the level-init memset → a later `G_Spawn` reuses that slot and this fn stomps a live entity. Now a fresh `G_Spawn()` per call. |
+| rd-vanilla `tr_init.cpp` | `standardfovinitialized` | surface-sprite FOV latch keeps first-session scaling across a `vid_restart`. Reset in `R_Init`. |
+
+**Renderer is mostly LATENT** (low priority): the dangerous `glState` cache is neutralized because this
+port's `InitOpenGL` never recreates the GL context on restart (cache stays consistent) — becomes live
+only if iOS EGL/SDL ever tears down + recreates the context on `vid_restart` (validate before trusting
+`glState`). Other rd-vanilla statics are by-design cross-level caches. The GLES1 cherry-pick added no
+new stateful file-scope globals. `vid_restart` is rare on iOS, so this stays deferred.
+
+**Tripwire** (`g_staleGlobalCheck`, default on): `G_CheckResidualState()` runs at the top of `InitGame`
+and warns to the log (`STALE GLOBAL: ...`) if an audited global is non-empty when it should be clean
+(after the previous level's `ShutdownGame`); `CGCam_Init` warns if `in_camera` was still set. Future
+leaks self-announce in `qconsole.log` instead of being found by playing. **To extend: add the global's
+teardown reset, then add a check for it here.**
+
+**Verified**: macOS static build; 4-map `devmap` regression (kejim_post → artus_mine → artus_topside →
+kejim_post), 3 transitions + quit, no crash, tripwire clean. **Not yet confirmed**: the actual Artus
+Topside die+reload cinematic replay — needs on-device interactive test (die, `load auto`, watch the
+early cinematic; the tripwire will print `in_camera was true at level init` if that's the mechanism).
+
 ## Known issues
 
 - ~~iOS: on-screen keyboard appears at boot~~ **Fixed** (`0182af0c`): skip `SDL_StartTextInput()` on mobile at init (same fix as the Android port).
@@ -98,6 +140,12 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
   auto-save hangs even on fixed builds; a fresh transition writes a good one. Also learned:
   `helpusobi 1` cheats reset on level transition, so an on-device "noclip didn't work" report can
   mean noclip silently never engaged.
+- **Artus Topside: early story cinematics don't replay after death+reload** — motivating report for
+  the 2026-07-19 proactive audit (see section above). Leading suspect: `in_camera` (cgame) left set
+  when a cinematic is interrupted, surviving the reload under static linking. Reset added in
+  `CGCam_Init` (`b52e4bd9`) plus a tripwire that logs `in_camera was true at level init`. **Fix landed;
+  on-device die+reload confirmation still pending.** If the tripwire stays silent on repro, the culprit
+  is elsewhere (next candidate: `numNewICARUSEnts`) — instrument and re-run.
 - ~~**Double save-load crash**~~ **Fixed** (`de048a2a`, 2026-07-12): classified as (a) — static-link stale globals, in the JK2 nav system. `CNavigator::Free()` deleted its nodes but never emptied `m_nodes`/`m_edgeLookupMap`, so the second in-process level init appended new nodes after dangling pointers → EXC_BAD_ACCESS in `CheckBlockedEdges` (lldb repro was fully scriptable: `+load quik +wait 300 +load quik`). Fixing that exposed a sibling in the same subsystem: `numStoredWaypoints` (file static, `g_nav.cpp`) accumulated across loads until `Too many waypoints!` ERR_DROP on the ~3rd load — user spotted it in the on-screen test window. Both reset in teardown now. Verified: 6 consecutive save loads on static, 3 on dynamic, clean. **The general hazard stands**: other game-module globals may still assume dlclose resets them — `vid_restart` (renderer statics) remains untested, and saves on iOS untested generally.
 
 ## OpenJK patches (fork branch `openjo-macos` → `openjo-static`)
@@ -111,6 +159,11 @@ Full write-up: `docs/research/3.0-android-port-study.md`. Headlines:
   level scripts lock the player for exit cinematics and rely on dlclose to unlock (JKA resets this
   per level; JK2's module predates that). Fixes arriving in chapter 4 unable to move. No-op for
   dynamic builds.
+- `b52e4bd9` (`openjo-ios`) — proactive static-link stale-global sweep + `g_staleGlobalCheck`
+  residual-state tripwire (see "Proactive static-link stale-global audit" above). Resets `in_camera`
+  (cgame), the ICARUS script-var store + `numNewICARUSEnts` + `missionInfo_Updated` (`ShutdownGame`),
+  the AI team-speech debounce arrays (`NPC_InitAI`), the nav `marker` dangle (`g_nav.cpp`), and the
+  renderer surface-sprite FOV latch (`R_Init`). No-op for dynamic builds.
 - `27665ce1` (`openjo-ios`) — L3+R3 held 400ms toggles the dev console (`in_gamepadConsoleChord`, default 1); on mobile the UIKit on-screen keyboard rises/falls with `KEYCATCH_CONSOLE` via `SDL_StartTextInput`/`StopTextInput` edge detection in `IN_Frame`. Cheats: type `helpusobi 1` then `give all`/`god`/`noclip`/etc. Known quirks: chording mid-game blips saber-style/zoom once (stick-click taps forward immediately by design); if the keyboard is dismissed with the iOS system key while the console stays open, chord twice to get it back (same recovery after `vid_restart` with console open — SDL's text-input state tracks the keyboard, so we track our own).
 
 ## Asset checksums

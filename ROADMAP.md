@@ -67,17 +67,36 @@ a no-op for dynamic builds):
 | `51b9b1bf` | ROFF cache (`g_roff.cpp`) — filenames/data on freed level hunk | Chapter-4 intro cinematic wedged / `G_Roff` crash |
 | `877c25fa` | `player_locked` + `cinematicSkipScript` (ICARUS) | Arrive in chapter 4 unable to move (noclip can't help — usercmd is zeroed) |
 
+**Proactive audit (2026-07-19, `b52e4bd9`).** Rather than keep finding these one level at a time, swept
+every statically-linked module (game, ICARUS, cgame, renderer) for the hazard. Reset the real leaks
+found and added a debug tripwire so future ones self-announce. Full write-up + suspect tables in
+NOTES.md ("Proactive static-link stale-global audit"). Newly fixed:
+
+| Commit | Stale global | Broke |
+|--------|--------------|-------|
+| `b52e4bd9` | `in_camera` (cgame camera) | cinematic outlives its level → **Artus Topside early cinematics don't replay after death+reload** (leading suspect; on-device confirmation pending) |
+| `b52e4bd9` | ICARUS script-var store + `numNewICARUSEnts` | leaked story flags / climbing script-ent names across `map`/New Game |
+| `b52e4bd9` | AI team-speech debounce arrays; nav `marker` dangle; renderer FOV latch | muted early team speech; potential live-entity stomp; stale sprite scaling after vid_restart |
+
+**Tripwire.** `g_staleGlobalCheck` (default on) → `G_CheckResidualState()` at `InitGame` warns
+`STALE GLOBAL: ...` when an audited global is dirty at level init; `CGCam_Init` warns on a stale
+`in_camera`. Extend it whenever you fix a new leak.
+
 **Diagnosis playbook** when a level misbehaves impossibly:
 
-1. Suspect a stale global *first*, before renderer/asset theories.
-2. `grep` for file-scope / `static` state in the involved subsystem; check whether teardown resets it.
-3. Reproduce headless-ish on the macOS static build with a scripted cfg (`maptransition`, `wait`,
-   `viewpos`/movement probe, `runscript`) — see NOTES.md "Headless-ish scripted repro".
-4. Fix = reset the global in the module teardown path, guarded so dynamic builds are unaffected.
+1. Check `qconsole.log` for a `STALE GLOBAL:` warning — the tripwire may already name the culprit.
+2. Suspect a stale global *first*, before renderer/asset theories.
+3. `grep` for file-scope / `static` state in the involved subsystem; check whether teardown resets it.
+4. Reproduce headless-ish on the macOS static build with a scripted cfg (`devmap`/`maptransition`,
+   `wait`, `viewpos`/movement probe, `runscript`) — see NOTES.md "Headless-ish scripted repro".
+5. Fix = reset the global in the module teardown path (guarded for dynamic builds) **and add a
+   tripwire check** so a regression is caught.
 
 **Known caveats.**
-- **`vid_restart` (renderer statics) is still untested** — the renderer went static too, and its
-  file-scope state has not been audited for the same hazard.
+- **`vid_restart` (renderer statics) audited but mostly latent** — the dangerous `glState` cache is
+  neutralized because `InitOpenGL` never recreates the GL context on this port (cache stays
+  consistent); becomes live only if iOS EGL/SDL ever recreates the context on `vid_restart`. Other
+  rd-vanilla statics are by-design cross-level caches. `vid_restart` is rare on iOS, so deferred.
 - **Saves written by a broken build can be permanently poisoned** — e.g. `G_SaveCachedRoffs`
   serialized dangling ROFF filenames, so a bad chapter-4 auto-save hangs even on fixed builds; only a
   fresh transition writes a clean one.
@@ -97,13 +116,15 @@ a no-op for dynamic builds):
 
 Ordered roughly by value.
 
-1. **Static-link stale-globals hardening** — the recurring hazard, now written up in its own
-   [section above](#static-link-stale-globals-hazard-the-dominant-recurring-issue). Four instances
-   fixed (nav ×2, ROFF cache, `player_locked`); the campaign is playable through them. Still open:
-   audit `vid_restart` / renderer statics, and keep expecting one more per newly-reached area of the
-   game. Not "done" so much as an ongoing discipline — this item stays open for the life of the port.
-   On-device: chapter 4 verified via `devmap artus_detention`; a full *played* chapter 3→4 transition
-   on device not yet user-confirmed end-to-end.
+1. **Static-link stale-globals hardening** — the recurring hazard, written up in its own
+   [section above](#static-link-stale-globals-hazard-the-dominant-recurring-issue). Now proactively
+   audited across all statically-linked modules (`b52e4bd9`): reset several more leaks (`in_camera`,
+   ICARUS script vars, `numNewICARUSEnts`, AI speech, nav marker, renderer FOV latch) and added the
+   `g_staleGlobalCheck` tripwire so future leaks self-announce. Renderer statics audited → mostly
+   latent (deferred). **Still open**: confirm the Artus Topside die+reload cinematic on device (the
+   audit's motivating symptom); keep extending the tripwire as new globals are fixed. Ongoing
+   discipline, not "done" — stays open for the life of the port. Also still unconfirmed on device: a
+   full *played* chapter 3→4 transition end-to-end.
 2. **AltStore/SideStore packaging** — escape the 7-day Xcode signing window. Zip
    `build-ios-xcode/Release/openjo_sp.arm64.app` into `Payload/` → `.ipa`; AltStore re-signs.
    Verify app-data (pk3s) survives AltStore's install-over. Free-account 7-day refresh still applies.
