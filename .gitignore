@@ -4,3 +4,4 @@ compile_commands.json
 .DS_Store
 ios-icon/
 build-ios-deps/
+game-assets/

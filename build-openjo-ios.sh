@@ -49,6 +49,16 @@ BUNDLE_ID="${BUNDLE_ID:-org.openjk.openjo-sp}"
 JOBS="${JOBS:-6}"
 ICON_DIR="$PWD/ios-icon"
 [[ -d "$ICON_DIR" ]] || echo "note: no ios-icon/ directory; app will have no icon"
+# Game pk3s to bake into the .app (base/ inside the bundle). Override with
+# ASSET_DIR=/path/to/base. Without them the app expects pk3s in Documents.
+ASSET_DIR="${ASSET_DIR:-$PWD/game-assets/base}"
+asset_pk3s=("$ASSET_DIR"/*.pk3(N))
+if (( ${#asset_pk3s} )); then
+  echo "note: embedding ${#asset_pk3s} pk3(s) from $ASSET_DIR"
+else
+  echo "note: no pk3s in $ASSET_DIR; app will need assets in Documents"
+  ASSET_DIR=""
+fi
 
 DEPS_SRC=build-ios-deps
 DEPS_PREFIX="$PWD/install-$SUFFIX-deps"
@@ -91,6 +101,7 @@ if [[ "$TARGET" == "archive" ]]; then
     -DCMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY="" \
     -DJK2SPBundleIdentifier="$BUNDLE_ID" \
     -DJK2SPIconDir="$ICON_DIR" \
+    -DJK2SPAssetDir="$ASSET_DIR" \
     -DBuildJK2SPEngine=ON -DBuildJK2SPGame=ON -DBuildJK2SPRdVanilla=ON \
     -DBuildJK2SPStatic=ON \
     -DBuildSPEngine=OFF -DBuildSPGame=OFF -DBuildSPRdVanilla=OFF \
@@ -130,6 +141,7 @@ if [[ "$TARGET" == "xcode" ]]; then
     -DCMAKE_XCODE_ATTRIBUTE_DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
     -DJK2SPBundleIdentifier="$BUNDLE_ID" \
     -DJK2SPIconDir="$ICON_DIR" \
+    -DJK2SPAssetDir="$ASSET_DIR" \
     -DBuildJK2SPEngine=ON -DBuildJK2SPGame=ON -DBuildJK2SPRdVanilla=ON \
     -DBuildJK2SPStatic=ON \
     -DBuildSPEngine=OFF -DBuildSPGame=OFF -DBuildSPRdVanilla=OFF \
@@ -157,6 +169,7 @@ cmake -G Ninja -S vendor/openjk -B "$BUILD_DIR" \
   -DCMAKE_FIND_ROOT_PATH="$DEPS_PREFIX" \
   -DJK2SPBundleIdentifier="$BUNDLE_ID" \
   -DJK2SPIconDir="$ICON_DIR" \
+    -DJK2SPAssetDir="$ASSET_DIR" \
   -DBuildJK2SPEngine=ON -DBuildJK2SPGame=ON -DBuildJK2SPRdVanilla=ON \
   -DBuildJK2SPStatic=ON \
   -DBuildSPEngine=OFF -DBuildSPGame=OFF -DBuildSPRdVanilla=OFF \
